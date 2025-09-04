@@ -1,0 +1,59 @@
+version: "3"
+services:
+  frontend:
+    image: frontend
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    environment:
+      - PORT=8080
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`Rayhans Fashion.localhost`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+    ports:
+      - 8080
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+  backend:
+    image: backend
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    environment:
+      # 👇 for remote DB connection
+      # - MONGODB_USERNAME=root
+      # - MONGODB_PASSWORD=xqv6yQrDMcASPbiw
+      # - MONGODB_DATABASE=nazneen
+      # 👇 for local DB connection
+      - MONGODB_CONNECTION_STRING=mongodb://mongo/Rayhans Fashion
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=(Host(`Rayhans Fashion.localhost`) && (PathPrefix(`/api`) || PathPrefix(`/socket`)))"
+      - "traefik.http.routers.backend.entrypoints=web"
+    ports:
+      - 3000
+      - 35729:35729
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/__tests__:/app/__tests__
+  mongo:
+    image: mongo
+    # 👇 to bind mongo to local port connection (to use Studio3T)
+    ports:
+      - 27017:27017
+    container_name: mongo
+  load-balancer:
+    image: traefik:v2.2
+    container_name: load-balancer
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
